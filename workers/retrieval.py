@@ -15,8 +15,11 @@ Gọi độc lập để test:
     python workers/retrieval.py
 """
 
+import math
 import os
+import re
 import sys
+from collections import Counter
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -28,6 +31,7 @@ load_dotenv()
 
 WORKER_NAME = "retrieval_worker"
 DEFAULT_TOP_K = 3
+DEFAULT_RETRIEVAL_MODE = "hybrid"
 
 
 def _get_embedding_fn():
@@ -56,12 +60,9 @@ def _get_embedding_fn():
     except ImportError:
         pass
 
-    # Fallback: random embeddings cho test (KHÔNG dùng production)
-    import random
-    def embed(text: str) -> list:
-        return [random.random() for _ in range(1024)]  # VoyageAI dim=1024
-    print("⚠️  WARNING: Using random embeddings (test only).")
-    return embed
+    raise RuntimeError(
+        "No embedding backend available. Configure VoyageAI or install sentence-transformers."
+    )
 
 
 def _get_collection():
@@ -78,6 +79,61 @@ def _get_collection():
     except Exception:
         print(f"⚠️  Collection '{collection_name}' chưa có. Kiểm tra chroma_db/ đã copy từ Day 08 chưa.")
         raise
+
+
+def _tokenize_for_bm25(text: str) -> list[str]:
+    """Tokenize bằng regex để giữ keyword kiểu IT-ACCESS ổn định hơn split()."""
+    return re.findall(r"[a-z0-9]+(?:-[a-z0-9]+)*", text.lower())
+
+
+def _bm25_scores(tokenized_corpus: list[list[str]], tokenized_query: list[str]) -> list[float]:
+    """
+    Tính BM25 scores.
+    Ưu tiên dùng rank_bm25 nếu có; nếu không có thì fallback sang bản BM25 tối giản.
+    """
+    try:
+        from rank_bm25 import BM25Okapi
+
+        bm25 = BM25Okapi(tokenized_corpus)
+        return [float(score) for score in bm25.get_scores(tokenized_query)]
+    except ImportError:
+        if not tokenized_corpus:
+            return []
+
+        document_count = len(tokenized_corpus)
+        avg_doc_len = sum(len(doc) for doc in tokenized_corpus) / document_count
+        doc_freq = Counter()
+        for doc in tokenized_corpus:
+            doc_freq.update(set(doc))
+
+        k1 = 1.5
+        b = 0.75
+        scores = []
+        for doc in tokenized_corpus:
+            term_freq = Counter(doc)
+            doc_len = len(doc) or 1
+            score = 0.0
+            for token in tokenized_query:
+                if token not in term_freq:
+                    continue
+                df = doc_freq.get(token, 0)
+                idf = math.log(((document_count - df + 0.5) / (df + 0.5)) + 1.0)
+                numerator = term_freq[token] * (k1 + 1.0)
+                denominator = term_freq[token] + k1 * (1.0 - b + b * (doc_len / avg_doc_len))
+                score += idf * (numerator / denominator)
+            scores.append(float(score))
+        return scores
+
+
+def _normalize_scores_to_unit_interval(scores: list[float]) -> list[float]:
+    """Chuẩn hóa score về [0, 1] để khớp contract worker."""
+    if not scores:
+        return []
+    max_score = max(scores)
+    min_score = min(scores)
+    if max_score == min_score:
+        return [1.0 if max_score > 0 else 0.0 for _ in scores]
+    return [(score - min_score) / (max_score - min_score) for score in scores]
 
 
 def retrieve_dense(query: str, top_k: int = DEFAULT_TOP_K) -> list:
@@ -124,6 +180,81 @@ def retrieve_dense(query: str, top_k: int = DEFAULT_TOP_K) -> list:
         return []
 
 
+def retrieve_sparse(query: str, top_k: int = DEFAULT_TOP_K) -> list:
+    """
+    Sparse retrieval bằng BM25 trên toàn bộ corpus.
+    Trả cùng format chunk như dense để dễ merge và đúng contract worker.
+    """
+    try:
+        collection = _get_collection()
+        all_chunks = collection.get(include=["documents", "metadatas"])
+        documents = all_chunks.get("documents", [])
+        metadatas = all_chunks.get("metadatas", [])
+
+        if not documents:
+            return []
+
+        tokenized_corpus = [_tokenize_for_bm25(doc) for doc in documents]
+        tokenized_query = _tokenize_for_bm25(query)
+        scores = _bm25_scores(tokenized_corpus, tokenized_query)
+        normalized_scores = _normalize_scores_to_unit_interval(scores)
+        ranked_indices = sorted(range(len(scores)), key=lambda idx: scores[idx], reverse=True)[:top_k]
+
+        chunks = []
+        for idx in ranked_indices:
+            metadata = metadatas[idx] or {}
+            chunks.append({
+                "text": documents[idx],
+                "source": metadata.get("source", "unknown"),
+                "score": round(float(normalized_scores[idx]), 4),
+                "metadata": metadata,
+            })
+        return chunks
+    except Exception as e:
+        print(f"⚠️  Sparse retrieval failed: {e}")
+        return []
+
+
+def retrieve_hybrid(
+    query: str,
+    top_k: int = DEFAULT_TOP_K,
+    dense_weight: float = 0.6,
+    sparse_weight: float = 0.4,
+) -> list:
+    """
+    Hybrid retrieval: merge dense + sparse bằng Reciprocal Rank Fusion (RRF).
+    Không cộng trực tiếp raw score vì hai thang đo khác nhau.
+    """
+    dense_results = retrieve_dense(query, top_k=max(top_k * 2, top_k))
+    sparse_results = retrieve_sparse(query, top_k=max(top_k * 2, top_k))
+
+    rrf_scores = {}
+    merged_chunks = {}
+    rrf_k = 60
+
+    for rank, chunk in enumerate(dense_results, start=1):
+        chunk_id = chunk["text"]
+        rrf_scores[chunk_id] = rrf_scores.get(chunk_id, 0.0) + dense_weight * (1.0 / (rrf_k + rank))
+        merged_chunks[chunk_id] = chunk
+
+    for rank, chunk in enumerate(sparse_results, start=1):
+        chunk_id = chunk["text"]
+        rrf_scores[chunk_id] = rrf_scores.get(chunk_id, 0.0) + sparse_weight * (1.0 / (rrf_k + rank))
+        if chunk_id not in merged_chunks:
+            merged_chunks[chunk_id] = chunk
+
+    ranked_chunks = sorted(rrf_scores.items(), key=lambda item: item[1], reverse=True)[:top_k]
+    return [
+        {
+            "text": chunk_id,
+            "source": merged_chunks[chunk_id]["source"],
+            "score": round(float(score), 6),
+            "metadata": merged_chunks[chunk_id]["metadata"],
+        }
+        for chunk_id, score in ranked_chunks
+    ]
+
+
 def run(state: dict) -> dict:
     """
     Worker entry point — gọi từ graph.py.
@@ -135,7 +266,8 @@ def run(state: dict) -> dict:
         Updated AgentState với retrieved_chunks và retrieved_sources
     """
     task = state.get("task", "")
-    top_k = state.get("retrieval_top_k", DEFAULT_TOP_K)
+    top_k = state.get("top_k", state.get("retrieval_top_k", DEFAULT_TOP_K))
+    retrieval_mode = state.get("retrieval_mode", DEFAULT_RETRIEVAL_MODE)
 
     state.setdefault("workers_called", [])
     state.setdefault("history", [])
@@ -145,13 +277,22 @@ def run(state: dict) -> dict:
     # Log worker IO (theo contract)
     worker_io = {
         "worker": WORKER_NAME,
-        "input": {"task": task, "top_k": top_k},
+        "input": {"task": task, "top_k": top_k, "retrieval_mode": retrieval_mode},
         "output": None,
         "error": None,
     }
 
     try:
-        chunks = retrieve_dense(task, top_k=top_k)
+        if retrieval_mode == "dense":
+            chunks = retrieve_dense(task, top_k=top_k)
+        elif retrieval_mode == "sparse":
+            chunks = retrieve_sparse(task, top_k=top_k)
+        elif retrieval_mode == "hybrid":
+            chunks = retrieve_hybrid(task, top_k=top_k)
+        else:
+            raise ValueError(
+                f"Unsupported retrieval_mode='{retrieval_mode}'. Expected one of: dense, sparse, hybrid."
+            )
 
         sources = list({c["source"] for c in chunks})
 
@@ -161,9 +302,10 @@ def run(state: dict) -> dict:
         worker_io["output"] = {
             "chunks_count": len(chunks),
             "sources": sources,
+            "retrieval_mode": retrieval_mode,
         }
         state["history"].append(
-            f"[{WORKER_NAME}] retrieved {len(chunks)} chunks from {sources}"
+            f"[{WORKER_NAME}] mode={retrieval_mode} retrieved {len(chunks)} chunks from {sources}"
         )
 
     except Exception as e:
@@ -184,17 +326,17 @@ def run(state: dict) -> dict:
 
 if __name__ == "__main__":
     print("=" * 50)
-    print("Retrieval Worker — Standalone Test")
+    print("Retrieval Worker - Standalone Test")
     print("=" * 50)
 
     test_queries = [
-        "SLA ticket P1 là bao lâu?",
-        "Điều kiện được hoàn tiền là gì?",
-        "Ai phê duyệt cấp quyền Level 3?",
+        "SLA ticket P1 la bao lau?",
+        "Dieu kien duoc hoan tien la gi?",
+        "Ai phe duyet cap quyen Level 3?",
     ]
 
     for query in test_queries:
-        print(f"\n▶ Query: {query}")
+        print(f"\n> Query: {query}")
         result = run({"task": query})
         chunks = result.get("retrieved_chunks", [])
         print(f"  Retrieved: {len(chunks)} chunks")
@@ -202,4 +344,4 @@ if __name__ == "__main__":
             print(f"    [{c['score']:.3f}] {c['source']}: {c['text'][:80]}...")
         print(f"  Sources: {result.get('retrieved_sources', [])}")
 
-    print("\n✅ retrieval_worker test done.")
+    print("\n[OK] retrieval_worker test done.")
