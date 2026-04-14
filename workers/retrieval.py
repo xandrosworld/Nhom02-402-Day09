@@ -244,16 +244,23 @@ def retrieve_hybrid(
             merged_chunks[chunk_id] = chunk
 
     ranked_chunks = sorted(rrf_scores.items(), key=lambda item: item[1], reverse=True)[:top_k]
+
+    # Normalize RRF scores to [0, 1] cho confidence calculation [MTT]
+    if ranked_chunks:
+        max_rrf = ranked_chunks[0][1]
+        min_rrf = ranked_chunks[-1][1] if len(ranked_chunks) > 1 else 0
+    else:
+        max_rrf, min_rrf = 1, 0
+
     return [
         {
             "text": chunk_id,
             "source": merged_chunks[chunk_id]["source"],
-            "score": round(float(score), 6),
+            "score": round(float((score - min_rrf) / (max_rrf - min_rrf) * 0.5 + 0.5) if max_rrf > min_rrf else 0.75, 4),
             "metadata": merged_chunks[chunk_id]["metadata"],
         }
         for chunk_id, score in ranked_chunks
     ]
-
 
 def run(state: dict) -> dict:
     """
