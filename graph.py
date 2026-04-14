@@ -269,10 +269,10 @@ def build_graph():
             # After human approval, continue with retrieval
             state = retrieval_worker_node(state)
         elif route == "policy_tool_worker":
+            # Retrieve evidence first so retrieved_sources is populated
+            # and both workers appear in trace (needed for cross-doc reasoning)
+            state = retrieval_worker_node(state)
             state = policy_tool_worker_node(state)
-            # Policy worker may need retrieval context first
-            if not state["retrieved_chunks"]:
-                state = retrieval_worker_node(state)
         else:
             # Default: retrieval_worker
             state = retrieval_worker_node(state)

@@ -55,7 +55,7 @@ def _call_llm(messages: list) -> str:
 
         response = client.messages.create(
             model=model,
-            max_tokens=512,
+            max_tokens=1024,
             temperature=0,
             system=system_msg,
             messages=user_msgs,
@@ -72,7 +72,7 @@ def _call_llm(messages: list) -> str:
             model="gpt-4o-mini",
             messages=messages,
             temperature=0,
-            max_tokens=512,
+            max_tokens=1024,
         )
         return response.choices[0].message.content
     except Exception:

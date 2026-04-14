@@ -330,6 +330,7 @@ def run(state: dict) -> dict:
             if mcp_result.get("output") and mcp_result["output"].get("chunks"):
                 chunks = mcp_result["output"]["chunks"]
                 state["retrieved_chunks"] = chunks
+                state["retrieved_sources"] = list({c.get("source", "unknown") for c in chunks if c})
 
         # Step 2: Phân tích policy
         policy_result = analyze_policy(task, chunks)

@@ -42,12 +42,16 @@ from typing import Any, Dict, List, Optional
 TOOL_SCHEMAS = {
     "search_kb": {
         "name": "search_kb",
-        "description": "Tìm kiếm Knowledge Base nội bộ bằng semantic search. Trả về top-k chunks liên quan nhất.",
+        "description": "Tìm kiếm Knowledge Base nội bộ. Hỗ trợ dense/sparse/hybrid, rerank, query transformation.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "query": {"type": "string", "description": "Câu hỏi hoặc keyword cần tìm"},
-                "top_k": {"type": "integer", "description": "Số chunks cần trả về", "default": 3},
+                "query":              {"type": "string",  "description": "Câu hỏi hoặc keyword cần tìm"},
+                "top_k":              {"type": "integer", "description": "Số chunks cần trả về", "default": 3},
+                "retrieval_mode":     {"type": "string",  "description": "dense|sparse|hybrid (mặc định từ env)", "enum": ["dense", "sparse", "hybrid"]},
+                "use_rerank":         {"type": "boolean", "description": "Bật VoyageAI reranker (mặc định từ env)"},
+                "use_transform":      {"type": "boolean", "description": "Bật query transformation (mặc định từ env)"},
+                "transform_strategy": {"type": "string",  "description": "expansion|decomposition|hyde", "enum": ["expansion", "decomposition", "hyde"]},
             },
             "required": ["query"],
         },
@@ -132,27 +136,60 @@ TOOL_SCHEMAS = {
 # Tool Implementations
 # ─────────────────────────────────────────────
 
-def tool_search_kb(query: str, top_k: int = 3) -> dict:
+def tool_search_kb(
+    query: str,
+    top_k: int = 3,
+    retrieval_mode: Optional[str] = None,
+    use_rerank: Optional[bool] = None,
+    use_transform: Optional[bool] = None,
+    transform_strategy: Optional[str] = None,
+) -> dict:
     """
-    Tìm kiếm Knowledge Base bằng semantic search.
+    Tìm kiếm Knowledge Base. Delegate sang retrieve_with_options() trong retrieval worker.
 
-    TODO Sprint 3: Kết nối với ChromaDB thực.
-    Hiện tại: Delegate sang retrieval worker.
+    Các options retrieval có thể bật tuỳ chọn để so sánh:
+      - retrieval_mode:     "dense"|"sparse"|"hybrid" (mặc định từ env RETRIEVAL_MODE)
+      - use_rerank:         bật VoyageAI cross-encoder (mặc định từ env RETRIEVAL_USE_RERANK)
+      - use_transform:      bật query transformation  (mặc định từ env RETRIEVAL_USE_TRANSFORM)
+      - transform_strategy: "expansion"|"decomposition"|"hyde"
+
+    Nếu không truyền → đọc từ env vars → fallback về luồng gốc (tất cả tắt).
     """
     try:
-        # Tái dùng retrieval logic từ workers/retrieval.py
         import sys
         sys.path.insert(0, os.path.dirname(__file__))
-        from workers.retrieval import retrieve_dense
-        chunks = retrieve_dense(query, top_k=top_k)
+        from workers.retrieval import retrieve_with_options, DEFAULT_RETRIEVAL_MODE
+
+        def _bool_env(key: str) -> bool:
+            return os.getenv(key, "false").lower() == "true"
+
+        mode      = retrieval_mode      if retrieval_mode      is not None else os.getenv("RETRIEVAL_MODE", DEFAULT_RETRIEVAL_MODE)
+        rerank    = use_rerank          if use_rerank          is not None else _bool_env("RETRIEVAL_USE_RERANK")
+        transform = use_transform       if use_transform        is not None else _bool_env("RETRIEVAL_USE_TRANSFORM")
+        strategy  = transform_strategy  if transform_strategy  is not None else os.getenv("RETRIEVAL_TRANSFORM_STRATEGY", "expansion")
+
+        chunks = retrieve_with_options(
+            query=query,
+            top_k=top_k,
+            retrieval_mode=mode,
+            use_rerank=rerank,
+            use_transform=transform,
+            transform_strategy=strategy,
+        )
         sources = list({c["source"] for c in chunks})
         return {
             "chunks": chunks,
             "sources": sources,
             "total_found": len(chunks),
+            "retrieval_config": {
+                "mode": mode,
+                "use_rerank": rerank,
+                "use_transform": transform,
+                "transform_strategy": strategy if transform else None,
+            },
         }
     except Exception as e:
-        # Fallback: return mock data nếu ChromaDB chưa setup
+        # Fallback: mock data nếu ChromaDB chưa setup
         return {
             "chunks": [
                 {

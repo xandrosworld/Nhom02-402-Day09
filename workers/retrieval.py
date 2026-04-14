@@ -262,6 +262,156 @@ def retrieve_hybrid(
         for chunk_id, score in ranked_chunks
     ]
 
+
+# ─────────────────────────────────────────────
+# Rerank — VoyageAI cross-encoder (kế thừa Day 08)
+# ─────────────────────────────────────────────
+
+def rerank(query: str, candidates: list, top_k: int = DEFAULT_TOP_K) -> list:
+    """
+    Rerank candidates bằng VoyageAI cross-encoder.
+    Fallback: trả về candidates[:top_k] nếu VoyageAI không khả dụng.
+
+    Args:
+        query: câu hỏi gốc
+        candidates: list chunks từ retrieve_* (có "text", "source", "score", "metadata")
+        top_k: số chunk giữ lại sau rerank
+
+    Returns:
+        list chunks đã sort lại theo relevance score thực sự
+    """
+    if not candidates:
+        return []
+    try:
+        import voyageai
+        client = voyageai.Client(api_key=os.getenv("VOYAGE_API_KEY"))
+        model_name = os.getenv("VOYAGE_RERANK_MODEL", "rerank-2")
+        docs = [c["text"] for c in candidates]
+        result = client.rerank(query=query, documents=docs, model=model_name, top_k=top_k)
+        reranked = []
+        for r in result.results:
+            chunk = candidates[r.index].copy()
+            chunk["score"] = round(r.relevance_score, 4)
+            reranked.append(chunk)
+        return reranked
+    except Exception as e:
+        print(f"⚠️  [retrieval] rerank failed ({e}), fallback to top-{top_k} by score")
+        return sorted(candidates, key=lambda c: c.get("score", 0), reverse=True)[:top_k]
+
+
+# ─────────────────────────────────────────────
+# Query Transformation — LLM-based (kế thừa Day 08)
+# ─────────────────────────────────────────────
+
+def transform_query(query: str, strategy: str = "expansion") -> list[str]:
+    """
+    Biến đổi query để tăng recall trước khi retrieve.
+
+    Strategies:
+      - "expansion":     Sinh 2-3 cách diễn đạt khác → union recall
+      - "decomposition": Tách câu phức thành 2-3 sub-queries độc lập
+      - "hyde":          Sinh hypothetical document → embed document thay query
+
+    Fallback: trả về [query] nếu LLM call thất bại.
+    """
+    prompts = {
+        "expansion": (
+            f"Query gốc: '{query}'\n"
+            "Sinh ra 2-3 cách diễn đạt khác hoặc từ đồng nghĩa liên quan bằng tiếng Việt "
+            "để tìm kiếm cùng thông tin. KHÔNG giải thích. Mỗi dòng là một query."
+        ),
+        "decomposition": (
+            f"Query phức: '{query}'\n"
+            "Tách thành 2-3 sub-queries đơn giản hơn bằng tiếng Việt. "
+            "KHÔNG giải thích. Mỗi dòng là một sub-query."
+        ),
+        "hyde": (
+            f"Viết một đoạn tài liệu nội bộ tiếng Việt ngắn (3-5 câu) "
+            f"có thể trả lời trực tiếp câu hỏi sau: '{query}'\n"
+            "KHÔNG giải thích. Chỉ viết nội dung tài liệu."
+        ),
+    }
+    prompt = prompts.get(strategy, prompts["expansion"])
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        response = client.messages.create(
+            model=os.getenv("LLM_MODEL", "claude-sonnet-4-6"),
+            max_tokens=256,
+            temperature=0,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = response.content[0].text.strip()
+        if strategy == "hyde":
+            return [raw]  # Dùng toàn bộ đoạn văn làm query
+        lines = [ln.strip().lstrip("-•0123456789.) ").strip() for ln in raw.splitlines() if ln.strip()]
+        return [query] + [ln for ln in lines if ln and ln != query]
+    except Exception as e:
+        print(f"⚠️  [retrieval] transform_query failed ({e}), using original query")
+        return [query]
+
+
+# ─────────────────────────────────────────────
+# Unified retrieval pipeline (dùng cho cả worker và MCP)
+# ─────────────────────────────────────────────
+
+def retrieve_with_options(
+    query: str,
+    top_k: int = DEFAULT_TOP_K,
+    retrieval_mode: str = DEFAULT_RETRIEVAL_MODE,
+    use_rerank: bool = False,
+    use_transform: bool = False,
+    transform_strategy: str = "expansion",
+) -> list:
+    """
+    Full pipeline: (transform) → retrieve → (rerank).
+
+    Dùng chung cho retrieval_worker và MCP tool search_kb.
+    Tất cả options mặc định False → hành vi giống hệt luồng gốc khi không bật.
+
+    Args:
+        query:               câu hỏi gốc
+        top_k:               số chunks cuối cùng trả về
+        retrieval_mode:      "dense" | "sparse" | "hybrid"
+        use_rerank:          bật VoyageAI cross-encoder sau retrieve
+        use_transform:       bật query transformation trước retrieve
+        transform_strategy:  "expansion" | "decomposition" | "hyde"
+
+    Returns:
+        list of chunks theo contract: {"text", "source", "score", "metadata"}
+    """
+    # Bước 0: Transform query (optional)
+    search_queries = [query]
+    if use_transform:
+        search_queries = transform_query(query, strategy=transform_strategy)
+        print(f"  [retrieval] transform({transform_strategy}) → {len(search_queries)} queries")
+
+    # Bước 1: Retrieve — lấy rộng hơn nếu có rerank/transform để có candidates tốt
+    search_top_k = top_k * 3 if (use_rerank or len(search_queries) > 1) else top_k
+
+    all_candidates: list = []
+    seen_texts: set = set()
+    for q in search_queries:
+        if retrieval_mode == "dense":
+            results = retrieve_dense(q, top_k=search_top_k)
+        elif retrieval_mode == "sparse":
+            results = retrieve_sparse(q, top_k=search_top_k)
+        else:  # hybrid (default)
+            results = retrieve_hybrid(q, top_k=search_top_k)
+
+        for chunk in results:
+            if chunk["text"] not in seen_texts:
+                all_candidates.append(chunk)
+                seen_texts.add(chunk["text"])
+
+    # Bước 2: Rerank (optional)
+    if use_rerank and all_candidates:
+        return rerank(query, all_candidates, top_k=top_k)
+
+    return all_candidates[:top_k]
+
+
 def run(state: dict) -> dict:
     """
     Worker entry point — gọi từ graph.py.
@@ -274,7 +424,15 @@ def run(state: dict) -> dict:
     """
     task = state.get("task", "")
     top_k = state.get("top_k", state.get("retrieval_top_k", DEFAULT_TOP_K))
-    retrieval_mode = state.get("retrieval_mode", DEFAULT_RETRIEVAL_MODE)
+
+    # Options đọc từ state (ưu tiên) hoặc env vars (fallback) — mặc định tắt
+    def _bool_env(key: str, default: bool = False) -> bool:
+        return os.getenv(key, "true" if default else "false").lower() == "true"
+
+    retrieval_mode      = state.get("retrieval_mode",           os.getenv("RETRIEVAL_MODE", DEFAULT_RETRIEVAL_MODE))
+    use_rerank          = state.get("retrieval_use_rerank",      _bool_env("RETRIEVAL_USE_RERANK"))
+    use_transform       = state.get("retrieval_use_transform",   _bool_env("RETRIEVAL_USE_TRANSFORM"))
+    transform_strategy  = state.get("retrieval_transform_strategy", os.getenv("RETRIEVAL_TRANSFORM_STRATEGY", "expansion"))
 
     state.setdefault("workers_called", [])
     state.setdefault("history", [])
@@ -284,35 +442,49 @@ def run(state: dict) -> dict:
     # Log worker IO (theo contract)
     worker_io = {
         "worker": WORKER_NAME,
-        "input": {"task": task, "top_k": top_k, "retrieval_mode": retrieval_mode},
+        "input": {
+            "task": task,
+            "top_k": top_k,
+            "retrieval_mode": retrieval_mode,
+            "use_rerank": use_rerank,
+            "use_transform": use_transform,
+            "transform_strategy": transform_strategy if use_transform else None,
+        },
         "output": None,
         "error": None,
     }
 
     try:
-        if retrieval_mode == "dense":
-            chunks = retrieve_dense(task, top_k=top_k)
-        elif retrieval_mode == "sparse":
-            chunks = retrieve_sparse(task, top_k=top_k)
-        elif retrieval_mode == "hybrid":
-            chunks = retrieve_hybrid(task, top_k=top_k)
-        else:
-            raise ValueError(
-                f"Unsupported retrieval_mode='{retrieval_mode}'. Expected one of: dense, sparse, hybrid."
-            )
+        chunks = retrieve_with_options(
+            query=task,
+            top_k=top_k,
+            retrieval_mode=retrieval_mode,
+            use_rerank=use_rerank,
+            use_transform=use_transform,
+            transform_strategy=transform_strategy,
+        )
 
         sources = list({c["source"] for c in chunks})
 
         state["retrieved_chunks"] = chunks
         state["retrieved_sources"] = sources
 
+        extras = []
+        if use_rerank:
+            extras.append("rerank=on")
+        if use_transform:
+            extras.append(f"transform={transform_strategy}")
+        extra_str = f" [{', '.join(extras)}]" if extras else ""
+
         worker_io["output"] = {
             "chunks_count": len(chunks),
             "sources": sources,
             "retrieval_mode": retrieval_mode,
+            "use_rerank": use_rerank,
+            "use_transform": use_transform,
         }
         state["history"].append(
-            f"[{WORKER_NAME}] mode={retrieval_mode} retrieved {len(chunks)} chunks from {sources}"
+            f"[{WORKER_NAME}] mode={retrieval_mode}{extra_str} retrieved {len(chunks)} chunks from {sources}"
         )
 
     except Exception as e:
