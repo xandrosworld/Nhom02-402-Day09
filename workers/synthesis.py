@@ -112,7 +112,7 @@ def _estimate_confidence(chunks: list, answer: str, policy_result: dict) -> floa
     - Có exceptions không
     - Answer có abstain không
 
-    TODO Sprint 2: Có thể dùng LLM-as-Judge để tính confidence chính xác hơn.
+    Đã hiện thực LLM-as-Judge để tính confidence chính xác bằng Semantic check.
     """
     if not chunks:
         return 0.1  # Không có evidence → low confidence
@@ -120,15 +120,32 @@ def _estimate_confidence(chunks: list, answer: str, policy_result: dict) -> floa
     if "Không đủ thông tin" in answer or "không có trong tài liệu" in answer.lower():
         return 0.3  # Abstain → moderate-low
 
-    # Weighted average của chunk scores
+    # Dùng LLM-as-Judge để chấm điểm
+    judge_prompt = f"""You are an expert evaluator. Check how confidently the following answer is supported by the references.
+Return ONLY a single float value between 0.0 and 1.0. Do not output any other text or explanation.
+
+References:
+{_build_context(chunks, policy_result)}
+
+Answer to evaluate:
+{answer}
+"""
+    try:
+        import re
+        score_str = _call_llm([{"role": "user", "content": judge_prompt}])
+        match = re.search(r"(0\.\d+|1\.0)", score_str)
+        if match:
+            return round(float(match.group(1)), 2)
+    except Exception as e:
+        print(f"⚠️ LLM-as-Judge failed: {e}")
+
+    # Fallback to heuristic
     if chunks:
         avg_score = sum(c.get("score", 0) for c in chunks) / len(chunks)
     else:
         avg_score = 0
 
-    # Penalty nếu có exceptions (phức tạp hơn)
     exception_penalty = 0.05 * len(policy_result.get("exceptions_found", []))
-
     confidence = min(0.95, avg_score - exception_penalty)
     return round(max(0.1, confidence), 2)
 
