@@ -1,0 +1,103 @@
+{
+  "task": "SLA xử lý ticket P1 là bao lâu?",
+  "route_reason": "default route",
+  "risk_high": false,
+  "needs_tool": false,
+  "hitl_triggered": false,
+  "retrieved_chunks": [
+    {
+      "text": "Ticket P1:\n- Phản hồi ban đầu (first response): 15 phút kể từ khi ticket được tạo.\n- Xử lý và khắc phục (resolution): 4 giờ.\n- Escalation: Tự động escalate lên Senior Engineer nếu không có phản hồi trong 10 phút.\n- Thông báo stakeholder: Ngay khi nhận ticket, update mỗi 30 phút cho đến khi resolve.\n\nTicket P2:\n- Phản hồi ban đầu: 2 giờ.\n- Xử lý và khắc phục: 1 ngày làm việc.\n- Escalation: Tự động escalate sau 90 phút không có phản hồi.\n\nTicket P3:\n- Phản hồi ban đầu: 1 ngày làm việc.\n- Xử lý và khắc phục: 5 ngày làm việc.\n\nTicket P4:\n- Phản hồi ban đầu: 3 ngày làm việc.\n- Xử lý và khắc phục: Theo sprint cycle (thông thường 2-4 tuần).",
+      "source": "support/sla-p1-2026.pdf",
+      "score": 0.016393,
+      "metadata": {
+        "section": "Phần 2: SLA theo mức độ ưu tiên",
+        "source": "support/sla-p1-2026.pdf",
+        "access": "internal",
+        "department": "IT",
+        "effective_date": "2026-01-15"
+      }
+    },
+    {
+      "text": "v2026.1 (2026-01-15): Cập nhật SLA P1 resolution từ 6 giờ xuống 4 giờ.\nv2025.3 (2025-09-01): Thêm quy trình escalation tự động.\nv2025.1 (2025-03-01): Phiên bản đầu tiên.",
+      "source": "support/sla-p1-2026.pdf",
+      "score": 0.016129,
+      "metadata": {
+        "effective_date": "2026-01-15",
+        "department": "IT",
+        "source": "support/sla-p1-2026.pdf",
+        "access": "internal",
+        "section": "Phần 5: Lịch sử phiên bản"
+      }
+    },
+    {
+      "text": "Bước 1: Tiếp nhận\nOn-call engineer nhận alert hoặc ticket, xác nhận severity trong 5 phút.\n\nBước 2: Thông báo\nGửi thông báo tới Slack #incident-p1 và email incident@company.internal ngay lập tức.\n\nBước 3: Triage và phân công\nLead Engineer phân công engineer xử lý trong 10 phút.\n\nBước 4: Xử lý\nEngineer cập nhật tiến độ lên ticket mỗi 30 phút. Nếu cần hỗ trợ thêm, escalate ngay.\n\nBước 5: Resolution\nSau khi khắc phục, viết incident report trong vòng 24 giờ.",
+      "source": "support/sla-p1-2026.pdf",
+      "score": 0.015625,
+      "metadata": {
+        "access": "internal",
+        "section": "Phần 3: Quy trình xử lý sự cố P1",
+        "effective_date": "2026-01-15",
+        "department": "IT",
+        "source": "support/sla-p1-2026.pdf"
+      }
+    }
+  ],
+  "retrieved_sources": [
+    "support/sla-p1-2026.pdf"
+  ],
+  "policy_result": {},
+  "mcp_tools_used": [],
+  "final_answer": "## SLA xử lý ticket P1\n\nDưới đây là các chỉ số SLA cho ticket P1:\n\n- **Phản hồi ban đầu (First Response):** 15 phút kể từ khi ticket được tạo [sla-p1-2026.pdf]\n- **Xử lý và khắc phục (Resolution):** 4 giờ [sla-p1-2026.pdf]\n- **Escalation tự động:** Nếu không có phản hồi trong **10 phút**, ticket sẽ tự động escalate lên Senior Engineer [sla-p1-2026.pdf]\n- **Thông báo stakeholder:** Ngay khi nhận ticket, cập nhật **mỗi 30 phút** cho đến khi resolve [sla-p1-2026.pdf]\n\n> 📌 **Lưu ý:** SLA resolution P1 đã được cập nhật từ **6 giờ xuống còn 4 giờ** kể từ phiên bản v2026.1 (15/01/2026) [sla-p1-2026.pdf]",
+  "sources": [
+    "support/sla-p1-2026.pdf"
+  ],
+  "confidence": 1.0,
+  "history": [
+    "[supervisor] received task: SLA xử lý ticket P1 là bao lâu?",
+    "[supervisor] route=retrieval_worker reason=default route",
+    "[retrieval_worker] mode=hybrid retrieved 3 chunks from ['support/sla-p1-2026.pdf']",
+    "[synthesis_worker] answer generated, confidence=1.0, sources=['support/sla-p1-2026.pdf']",
+    "[graph] completed in 14118ms"
+  ],
+  "workers_called": [
+    "retrieval_worker",
+    "synthesis_worker"
+  ],
+  "supervisor_route": "retrieval_worker",
+  "latency_ms": 14118,
+  "run_id": "run_20260414_154744",
+  "worker_io_logs": [
+    {
+      "worker": "retrieval_worker",
+      "input": {
+        "task": "SLA xử lý ticket P1 là bao lâu?",
+        "top_k": 3,
+        "retrieval_mode": "hybrid"
+      },
+      "output": {
+        "chunks_count": 3,
+        "sources": [
+          "support/sla-p1-2026.pdf"
+        ],
+        "retrieval_mode": "hybrid"
+      },
+      "error": null
+    },
+    {
+      "worker": "synthesis_worker",
+      "input": {
+        "task": "SLA xử lý ticket P1 là bao lâu?",
+        "chunks_count": 3,
+        "has_policy": false
+      },
+      "output": {
+        "answer_length": 603,
+        "sources": [
+          "support/sla-p1-2026.pdf"
+        ],
+        "confidence": 1.0
+      },
+      "error": null
+    }
+  ]
+}
