@@ -20,6 +20,9 @@ import os
 import sys
 from typing import Optional
 
+from dotenv import load_dotenv
+load_dotenv()
+
 WORKER_NAME = "policy_tool_worker"
 
 
@@ -56,6 +59,131 @@ def _call_mcp_tool(tool_name: str, tool_input: dict) -> dict:
             "error": {"code": "MCP_CALL_FAILED", "reason": str(e)},
             "timestamp": datetime.now().isoformat(),
         }
+
+
+# ─────────────────────────────────────────────
+# LLM Policy Analysis Helper
+# ─────────────────────────────────────────────
+
+def _call_llm_for_policy(task: str, chunks: list):
+    """
+    Gọi LLM để phân tích policy phức tạp hơn rule-based.
+
+    Primary:  Anthropic Claude (giống synthesis.py)
+    Fallback: OpenAI gpt-4o-mini
+    Fallback: None (graceful degradation — caller dùng rule-based only)
+
+    Returns:
+        dict with keys: policy_applies, llm_exceptions, explanation, confidence
+        OR None nếu LLM không khả dụng
+    """
+    # Build context from chunks
+    context_lines = []
+    for i, chunk in enumerate(chunks, 1):
+        source = chunk.get("source", "unknown")
+        text = chunk.get("text", "")
+        context_lines.append(f"[{i}] Nguồn: {source}\n{text}")
+    context_text = "\n\n".join(context_lines) if context_lines else "(Không có tài liệu tham khảo)"
+
+    system_prompt = """Bạn là Policy Analyst chuyên về chính sách hoàn tiền và quyền truy cập hệ thống.
+
+    Nhiệm vụ: Phân tích yêu cầu của khách hàng/nhân viên và xác định liệu chính sách có áp dụng không, và có ngoại lệ nào không.
+
+    Các ngoại lệ phổ biến cần phát hiện:
+    - Flash Sale: không được hoàn tiền (Điều 3, chính sách v4)
+    - Sản phẩm kỹ thuật số (license key, subscription, kỹ thuật số): không được hoàn tiền
+    - Sản phẩm đã kích hoạt, đã đăng ký, đã sử dụng: không được hoàn tiền
+    - Đơn trước 01/02/2026: áp dụng chính sách v3 (không có trong tài liệu — cần flag)
+
+    Quy tắc nghiêm ngặt:
+    1. CHỈ dựa vào context được cung cấp. KHÔNG bịa policy rules.
+    2. Trả về JSON hợp lệ theo đúng format yêu cầu.
+    3. Nếu không đủ thông tin → policy_applies=true (không chặn mà không có cơ sở).
+
+    Trả về JSON với format sau (không có markdown, không có ```json):
+    {
+    "policy_applies": true,
+    "llm_exceptions": [
+        {"type": "tên_exception", "rule": "Câu policy rule cụ thể", "source": "tên_file"}
+    ],
+    "explanation": "Giải thích ngắn gọn lý do quyết định",
+    "confidence": 0.85
+    }"""
+
+    user_content = f"""Yêu cầu: {task}
+
+    === TÀI LIỆU CHÍNH SÁCH ===
+    {context_text}
+
+    Hãy phân tích và trả về JSON theo format yêu cầu."""
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_content},
+    ]
+
+    raw_response = None
+
+    # Primary: Anthropic Claude
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        model = os.getenv("LLM_MODEL", "claude-sonnet-4-6")
+
+        system_msg = ""
+        user_msgs = []
+        for m in messages:
+            if m["role"] == "system":
+                system_msg = m["content"]
+            else:
+                user_msgs.append(m)
+
+        response = client.messages.create(
+            model=model,
+            max_tokens=512,
+            temperature=0,
+            system=system_msg,
+            messages=user_msgs,
+        )
+        raw_response = response.content[0].text
+    except Exception as e:
+        print(f"⚠️  [policy_tool] Anthropic failed: {e}")
+
+    # Fallback: OpenAI gpt-4o-mini
+    if raw_response is None:
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                temperature=0,
+                max_tokens=512,
+            )
+            raw_response = response.choices[0].message.content
+        except Exception as e:
+            print(f"⚠️  [policy_tool] OpenAI fallback failed: {e}")
+
+    # Nếu cả hai LLM fail → graceful degradation
+    if raw_response is None:
+        return None
+
+    # Parse JSON response
+    try:
+        import json
+        cleaned = raw_response.strip()
+        # Strip potential markdown code fences (Claude đôi khi wrap JSON)
+        if cleaned.startswith("```"):
+            lines = cleaned.split("\n")
+            end_idx = len(lines) - 1 if lines[-1] == "```" else len(lines)
+            cleaned = "\n".join(lines[1:end_idx])
+        result = json.loads(cleaned)
+        if "policy_applies" not in result:
+            raise ValueError("Missing 'policy_applies' key in LLM response")
+        return result
+    except Exception as e:
+        print(f"⚠️  [policy_tool] JSON parse failed: {e}\nRaw: {raw_response[:200]}")
+        return None
 
 
 # ─────────────────────────────────────────────
@@ -117,29 +245,46 @@ def analyze_policy(task: str, chunks: list) -> dict:
     if "31/01" in task_lower or "30/01" in task_lower or "trước 01/02" in task_lower:
         policy_version_note = "Đơn hàng đặt trước 01/02/2026 áp dụng chính sách v3 (không có trong tài liệu hiện tại)."
 
-    # TODO Sprint 2: Gọi LLM để phân tích phức tạp hơn
-    # Ví dụ:
-    # from openai import OpenAI
-    # client = OpenAI()
-    # response = client.chat.completions.create(
-    #     model="gpt-4o-mini",
-    #     messages=[
-    #         {"role": "system", "content": "Bạn là policy analyst. Dựa vào context, xác định policy áp dụng và các exceptions."},
-    #         {"role": "user", "content": f"Task: {task}\n\nContext:\n" + "\n".join([c['text'] for c in chunks])}
-    #     ]
-    # )
-    # analysis = response.choices[0].message.content
+    # --- LLM second pass (Sprint 2) ---
+    llm_result = _call_llm_for_policy(task, chunks)
+
+    if llm_result is not None:
+        # Merge LLM exceptions không trùng với rule-based
+        existing_types = {ex["type"] for ex in exceptions_found}
+        for llm_ex in llm_result.get("llm_exceptions", []):
+            if llm_ex.get("type") not in existing_types:
+                exceptions_found.append(llm_ex)
+                existing_types.add(llm_ex.get("type"))
+
+        # policy_applies=False nếu LLM phát hiện exceptions
+        if not llm_result.get("policy_applies", True):
+            policy_applies = False
+
+        # Dùng LLM explanation (thay cho string "TODO")
+        explanation = llm_result.get("explanation", "Analyzed via rule-based + LLM policy check.")
+        llm_confidence = llm_result.get("confidence", None)
+    else:
+        # LLM không khả dụng → giữ rule-based, không crash
+        explanation = "Analyzed via rule-based policy check (LLM unavailable)."
+        llm_confidence = None
+
+    # Re-evaluate sau khi merge (source of truth duy nhất là exceptions_found)
+    policy_applies = len(exceptions_found) == 0
 
     sources = list({c.get("source", "unknown") for c in chunks if c})
 
-    return {
+    result = {
         "policy_applies": policy_applies,
         "policy_name": policy_name,
         "exceptions_found": exceptions_found,
         "source": sources,
         "policy_version_note": policy_version_note,
-        "explanation": "Analyzed via rule-based policy check. TODO: upgrade to LLM-based analysis.",
+        "explanation": explanation,
     }
+    if llm_confidence is not None:
+        result["llm_confidence"] = llm_confidence
+
+    return result
 
 
 # ─────────────────────────────────────────────
