@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-14T15:09:53.139363",
+  "generated_at": "2026-04-14T17:04:46.488236",
   "day08_single_agent": {
     "total_questions": 10,
     "avg_confidence": 0.87,
@@ -8,38 +8,46 @@
     "multi_hop_accuracy": "N/A"
   },
   "day09_multi_agent": {
-    "total_traces": 46,
+    "total_traces": 136,
     "routing_distribution": {
-      "retrieval_worker": "24/46 (52%)",
-      "policy_tool_worker": "22/46 (47%)"
+      "retrieval_worker": "72/136 (52%)",
+      "policy_tool_worker": "64/136 (47%)"
     },
-    "avg_confidence": 0.335,
-    "avg_latency_ms": 10865,
-    "mcp_usage_rate": "22/46 (47%)",
-    "hitl_rate": "2/46 (4%)",
+    "avg_confidence": 0.56,
+    "avg_latency_ms": 11035,
+    "mcp_usage_rate": "64/136 (47%)",
+    "hitl_rate": "8/136 (5%)",
     "top_sources": [
       [
-        "support/sla-p1-2026.pdf",
-        8
+        "it/access-control-sop.md",
+        38
       ],
       [
-        "it/access-control-sop.md",
-        8
+        "support/sla-p1-2026.pdf",
+        32
       ],
       [
         "hr/leave-policy-2026.pdf",
-        4
+        16
       ],
       [
         "support/helpdesk-faq.md",
-        2
+        9
       ]
     ]
   },
   "analysis": {
     "routing_visibility": "Day 09 có route_reason cho từng câu → dễ debug hơn Day 08",
-    "latency_delta": "TODO: Điền delta latency thực tế",
-    "accuracy_delta": "TODO: Điền delta accuracy thực tế từ grading",
+    "latency_delta": {
+      "day08": 10500,
+      "day09": 11035,
+      "delta_ms": 535
+    },
+    "accuracy_delta": {
+      "day08": 0.87,
+      "day09": 0.56,
+      "delta": -0.31
+    },
     "debuggability": "Multi-agent: có thể test từng worker độc lập. Single-agent: không thể.",
     "mcp_benefit": "Day 09 có thể extend capability qua MCP không cần sửa core. Day 08 phải hard-code."
   }
