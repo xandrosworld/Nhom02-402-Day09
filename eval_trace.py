@@ -307,9 +307,16 @@ def compare_single_vs_multi(
 def save_eval_report(comparison: dict) -> str:
     """Lưu báo cáo eval tổng kết ra file JSON."""
     os.makedirs("artifacts", exist_ok=True)
+    os.makedirs("artifacts/eval_history", exist_ok=True)
     output_file = "artifacts/eval_report.json"
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(comparison, f, ensure_ascii=False, indent=2)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    history_path = f"artifacts/eval_history/eval_{timestamp}.json"
+    with open(history_path, "w", encoding="utf-8") as f:
+        json.dump(comparison, f, indent=2, ensure_ascii=False)
+    print(f"\n📄 Eval report → {output_file}")
+    print(f"🕓 History saved → {history_path}")
     return output_file
 
 

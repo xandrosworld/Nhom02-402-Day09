@@ -7,3 +7,4 @@ artifacts/traces/
 *.egg-info/
 .venv/
 venv/
+artifacts/eval_history/
