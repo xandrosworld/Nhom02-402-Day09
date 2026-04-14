@@ -1,0 +1,117 @@
+[
+  {
+    "id": "gq01",
+    "question": "SLA xử lý ticket P1 đã thay đổi như thế nào so với phiên bản trước?",
+    "answer": "# Thay đổi SLA Ticket P1 theo lịch sử phiên bản\n\nDựa theo tài liệu nội bộ, SLA xử lý ticket P1 đã có các thay đổi như sau:\n\n---\n\n## 📋 Lịch sử thay đổi chính\n\n| Phiên bản | Ngày hiệu lực | Nội dung thay đổi |\n|---|---|---|\n| v2025.1 | 01/03/2025 | Phiên bản đầu tiên được ban hành |\n| v2025.3 | 01/09/2025 | Bổ sung quy trình **escalation tự động** |\n| v2026.1 | 15/01/2026 | **Resolution time giảm từ 6 giờ → 4 giờ** |\n\n[1]\n\n---\n\n## ✅ SLA P1 hiện hành (v2026.1)\n\n- ⏱️ **First response:** 15 phút kể từ khi ticket được tạo\n- 🔧 **Resolution:** **4 giờ** *(giảm so với 6 giờ ở phiên bản trước)*\n- 🔺 **Escalation:** Tự động escalate lên Senior Engineer nếu không có phản hồi trong **10 phút**\n- 📢 **Thông báo stakeholder:** Ngay khi nhận ticket, cập nhật **mỗi 30 phút** cho đến khi resolve\n\n[2]\n\n---\n\n## 💡 Tóm tắt điểm thay đổi nổi bật\n\n- **Thay đổi lớn nhất** ở v2026.1: Thời gian resolution **rút ngắn 2 giờ** (từ 6h → 4h), yêu cầu xử lý nhanh hơn đá",
+    "sources": [
+      "support/sla-p1-2026.pdf"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T16:12:24.603824"
+  },
+  {
+    "id": "gq02",
+    "question": "Khi làm việc remote, tôi phải dùng VPN và được kết nối trên tối đa bao nhiêu thiết bị?",
+    "answer": "## Quy định VPN khi làm việc Remote 🔒\n\nDưới đây là tổng hợp thông tin liên quan đến VPN khi làm việc từ xa:\n\n---\n\n### ✅ Yêu cầu bắt buộc khi Remote\n\n- **Kết nối VPN là bắt buộc** khi làm việc với các hệ thống nội bộ của công ty [2]\n- Phần mềm VPN công ty sử dụng: **Cisco AnyConnect**\n  - 📥 Tải tại: `https://vpn.company.internal/download` [1]\n\n---\n\n### 📱 Giới hạn số thiết bị\n\n> Mỗi tài khoản được phép kết nối VPN trên tối đa **2 thiết bị cùng lúc** [1]\n\n---\n\n### 🛠️ Nếu gặp sự cố mất kết nối VPN\n\n- Kiểm tra lại kết nối Internet trước\n- Nếu vẫn còn lỗi → **Tạo ticket P3** và đính kèm **log file VPN** [1]\n\n---\n\n💡 **Lưu ý thêm:** Ngoài VPN, khi họp team từ xa bạn cũng cần **bật camera** theo quy định remote work của công ty [2].\n\nBạn cần hỗ trợ thêm gì không? 😊",
+    "sources": [
+      "hr/leave-policy-2026.pdf",
+      "support/helpdesk-faq.md",
+      "it/access-control-sop.md"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T16:12:33.360330"
+  },
+  {
+    "id": "gq03",
+    "question": "Đơn hàng mua trong chương trình Flash Sale và đã kích hoạt sản phẩm có được hoàn tiền không?",
+    "answer": "## Trả lời: Hoàn tiền cho đơn Flash Sale đã kích hoạt sản phẩm\n\nRất tiếc, trường hợp của bạn **không đủ điều kiện hoàn tiền**. Cụ thể, đơn hàng vi phạm **đồng thời hai ngoại lệ** được quy định tại chính sách hoàn tiền:\n\n---\n\n### ❌ Lý do không được hoàn tiền\n\nTheo **Điều 3 – Ngoại lệ không được hoàn tiền** [1]:\n\n- 🔴 **Đơn hàng thuộc chương trình Flash Sale** → Các đơn hàng đã áp dụng mã giảm giá đặc biệt theo chương trình khuyến mãi Flash Sale bị loại trừ khỏi chính sách hoàn tiền.\n- 🔴 **Sản phẩm đã được kích hoạt** → Sản phẩm đã được kích hoạt hoặc đăng ký tài khoản không được chấp nhận hoàn tiền.\n\n---\n\n### 📌 Lưu ý thêm\n\nNgay cả khi không thuộc hai ngoại lệ trên, để được hoàn tiền, đơn hàng vẫn cần đáp ứng **đồng thời** các điều kiện sau [2]:\n- Sản phẩm bị lỗi do nhà sản xuất (không phải lỗi người dùng)\n- Yêu cầu gửi trong vòng **7 ngày làm việc** kể từ xác nhận đơn hàng\n- Sản phẩm **chưa được sử dụng / chưa mở seal**\n\n---\n\n### 💬 Bạn cần h",
+    "sources": [
+      "policy/refund-v4.pdf"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T16:12:42.921552"
+  },
+  {
+    "id": "gq04",
+    "question": "Nếu chọn nhận store credit thay vì hoàn tiền, tôi được bao nhiêu phần trăm so với số tiền gốc?",
+    "answer": "## Thông tin về Store Credit 💳\n\nTheo chính sách hoàn tiền của công ty, nếu bạn chọn nhận **store credit** thay vì hoàn tiền trực tiếp, bạn sẽ nhận được:\n\n> **110% giá trị** so với số tiền hoàn gốc\n\nTức là bạn được **cộng thêm 10%** so với số tiền ban đầu — đây là ưu đãi khi chọn hình thức store credit thay vì hoàn về phương thức thanh toán gốc. [1]\n\n---\n\n### Ví dụ minh họa:\n- Số tiền hoàn gốc: **1.000.000 VNĐ**\n- Nếu chọn hoàn về phương thức thanh toán gốc: **1.000.000 VNĐ**\n- Nếu chọn store credit: **1.100.000 VNĐ** ✅\n\n---\n\n> 💡 **Lưu ý:** Để được áp dụng bất kỳ hình thức hoàn tiền nào, đơn hàng của bạn vẫn cần đáp ứng đủ điều kiện hoàn tiền theo quy định (sản phẩm lỗi do nhà sản xuất, yêu cầu trong vòng 7 ngày làm việc, chưa mở seal...). [2]\n\nBạn cần hỗ trợ thêm gì không? 😊",
+    "sources": [
+      "policy/refund-v4.pdf"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T16:12:52.077897"
+  },
+  {
+    "id": "gq05",
+    "question": "Contractor từ bên ngoài công ty có thể được cấp quyền Admin Access không? Nếu có, cần bao nhiêu ngày và có yêu cầu đặc biệt gì?",
+    "answer": "# Contractor có thể được cấp Admin Access không?\n\n## ✅ Câu trả lời ngắn: **Có thể**, nhưng có điều kiện chặt chẽ.\n\nTheo tài liệu nội bộ, phạm vi áp dụng của quy trình cấp quyền bao gồm **nhân viên, contractor và third-party vendor** [2]. Do đó, contractor từ bên ngoài **không bị loại trừ** khỏi khả năng được cấp Admin Access.\n\n---\n\n## 📋 Chi tiết về Admin Access (Level 4)\n\nDựa theo quy định tại [1]:\n\n- **Đối tượng áp dụng:** DevOps, SRE, IT Admin *(và contractor thuộc phạm vi tương đương)*\n- **Thời gian xử lý:** **5 ngày làm việc**\n- **Phê duyệt bởi:** IT Manager **+** CISO\n- **Yêu cầu đặc biệt:** ⚠️ Bắt buộc hoàn thành **Training về Security Policy** trước khi được cấp quyền\n\n---\n\n## 🔄 Quy trình thực hiện\n\nContractor cần thực hiện theo các bước sau [3]:\n\n1. Tạo **Access Request ticket** trên Jira *(project: IT-ACCESS)*\n2. **Line Manager** phê duyệt trong vòng 1 ngày làm việc\n3. **IT Admin** kiểm tra compliance và xử lý cấp quyền\n4. **IT Security** review (bắt buộc với Level 4)\n5. Nhận **thông báo xác nhận qua email** khi quyền được cấp\n\n---\n\n## ⚠️ Lưu ý quan trọng\n\n> Tài liệu hiện tại **không nêu rõ",
+    "sources": [
+      "it/access-control-sop.md"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T16:13:03.968042"
+  },
+  {
+    "id": "gq06",
+    "question": "Lúc 2 giờ sáng xảy ra sự cố Pl, on-call engineer cần cấp quyền tạm thời cho một engineer xử lý incident. Quy trình cụ thể như thế nào và quyền này tồn tại bao lâu?",
+    "answer": "# 🚨 Quy trình Cấp Quyền Tạm Thời trong Sự Cố P1 (2 giờ sáng)\n\n## Bước 1 – Xử lý sự cố P1 trước tiên\n\nTrước khi cấp quyền, on-call engineer cần thực hiện ngay các bước sau [2]:\n\n- ✅ **Xác nhận severity** trong vòng **5 phút** sau khi nhận alert\n- 📢 **Thông báo ngay** lên Slack `#incident-p1` và email `incident@company.internal`\n- 👤 **Lead Engineer phân công** engineer xử lý trong **10 phút**\n\n---\n\n## Bước 2 – Quy trình Escalation cấp quyền tạm thời\n\nVì đây là tình huống khẩn cấp P1 **ngoài giờ hành chính**, áp dụng quy trình escalation đặc biệt [1]:\n\n| # | Hành động | Người thực hiện |\n|---|-----------|----------------|\n| 1 | Liên hệ **Tech Lead** để xin phê duyệt bằng lời (verbal approval) | On-call IT Admin |\n| 2 | Sau khi được Tech Lead phê duyệt → **cấp quyền tạm thời** | On-call IT Admin |\n| 3 | **Ghi log ngay** vào hệ thống **Security Audit** | On-call IT Admin |\n\n---\n\n## ⏱️ Thời hạn quyền tạm thời\n\n- Quyền tạm thời tồn tại **tối đa 24 giờ** [1]\n- Sau 24 giờ, **bắt buộc** chọn một trong hai:\n  - 📋 Tạo **ticket chính thức**",
+    "sources": [
+      "it/access-control-sop.md",
+      "support/sla-p1-2026.pdf"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T16:13:14.343517"
+  },
+  {
+    "id": "gq07",
+    "question": "Công ty sẽ phạt bao nhiêu nếu team IT vi phạm cam kết SLA P1?",
+    "answer": "## Về mức phạt khi vi phạm SLA P1\n\nXin lỗi, hiện tại tôi **không có đủ dữ liệu** từ tài liệu hệ thống để trả lời câu hỏi này.\n\nCụ thể, các tài liệu được trích xuất ([1], [2], [3]) từ file `support/sla-p1-2026.pdf` chỉ bao gồm:\n\n- ✅ Các **cam kết thời gian** SLA theo từng mức độ ưu tiên (P1–P4)\n- ✅ **Quy trình xử lý** sự cố P1 (5 bước)\n- ✅ **Công cụ & kênh liên lạc** hỗ trợ\n\nTuy nhiên, **không có điều khoản nào đề cập đến mức phạt** (penalty/consequence) khi team IT vi phạm cam kết SLA P1.\n\n---\n\n### 💡 Gợi ý bước tiếp theo\n\nBạn có thể tìm kiếm thông tin này tại:\n- 📄 Tài liệu **hợp đồng SLA** hoặc **OLA (Operational Level Agreement)** nội bộ\n- 📄 Chính sách **KPI/KPIs của bộ phận IT**\n- 👤 Liên hệ trực tiếp **IT Manager** hoặc **bộ phận HR/Legal** để được xác nhận chính xác\n\nTôi không thể tự suy diễn hay đưa ra con số phạt khi chưa có tài liệu chính thức. Mong bạn thông cảm! 🙏",
+    "sources": [
+      "support/sla-p1-2026.pdf"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T16:13:26.107935"
+  },
+  {
+    "id": "gq08",
+    "question": "Nhân viên phải báo trước bao nhiêu ngày để xin nghỉ phép năm? Con số này có giống với số ngày cần giấy tờ khi nghỉ ốm không?",
+    "answer": "## Trả lời về Quy định Báo Trước Khi Xin Nghỉ Phép\n\nChào bạn! Dưới đây là thông tin chi tiết về hai trường hợp bạn hỏi:\n\n---\n\n### 📅 Nghỉ Phép Năm — Báo trước bao nhiêu ngày?\n\nTheo quy trình xin nghỉ phép của công ty [2]:\n\n- Nhân viên cần gửi yêu cầu qua **HR Portal** (https://hr.company.internal) **ít nhất 3 ngày làm việc** trước ngày nghỉ.\n- Line Manager sẽ phê duyệt/từ chối trong vòng **1 ngày làm việc**.\n- Nhân viên nhận thông báo kết quả **qua email**.\n\n> ⚠️ **Trường hợp khẩn cấp:** Có thể gửi yêu cầu muộn hơn, nhưng **bắt buộc phải được Line Manager đồng ý qua tin nhắn trực tiếp** [2].\n\n---\n\n### 🤒 Nghỉ Ốm — Con số có giống không?\n\n**Không giống nhau.** Quy định nghỉ ốm khác biệt hoàn toàn [1]:\n\n- Không yêu cầu báo trước — chỉ cần **thông báo cho Line Manager trước 9:00 sáng ngày nghỉ**.\n- Nếu nghỉ ốm **trên 3 ngày liên tiếp** → cần nộp **giấy tờ y tế từ bệnh viện**.\n\n---\n\n### 📊 Tóm tắt so sánh\n\n| Loại nghỉ | Yêu cầu thời gian | Gi",
+    "sources": [
+      "hr/leave-policy-2026.pdf",
+      "it/access-control-sop.md"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T16:13:36.414856"
+  },
+  {
+    "id": "gq09",
+    "question": "Mật khẩu tài khoản công ty cần đổi định kỳ không? Nếu có, hệ thống sẽ nhắc nhở trước bao nhiêu ngày và đổi qua đâu?",
+    "answer": "## 🔐 Chính sách đổi mật khẩu định kỳ\n\nCó, mật khẩu tài khoản công ty **bắt buộc phải thay đổi định kỳ**. Dưới đây là các thông tin chi tiết:\n\n---\n\n### 📋 Quy định chính\n\n- **Chu kỳ đổi mật khẩu:** Mỗi **90 ngày** một lần [1]\n- **Nhắc nhở trước:** Hệ thống sẽ tự động thông báo trước **7 ngày** khi mật khẩu sắp hết hạn [1]\n\n---\n\n### 🔄 Cách thực hiện đổi mật khẩu\n\nBạn có thể đổi mật khẩu qua một trong hai cách sau [1]:\n\n- 🌐 **Tự thực hiện online:** Truy cập portal SSO tại\n  👉 `https://sso.company.internal/reset`\n- 📞 **Liên hệ hỗ trợ:** Gọi IT Helpdesk qua **ext. 9000**\n  *(Mật khẩu mới sẽ được gửi về email công ty trong vòng **5 phút**)*\n\n---\n\n> 💡 **Lưu ý:** Để tránh bị gián đoạn công việc, bạn nên đổi mật khẩu ngay khi nhận được thông báo nhắc nhở, không nên để đến phút cuối nhé!\n\nBạn cần hỗ trợ thêm gì không? 😊",
+    "sources": [
+      "support/helpdesk-faq.md",
+      "it/access-control-sop.md"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T16:13:46.604932"
+  },
+  {
+    "id": "gq10",
+    "question": "Chính sách hoàn tiền hiện tại áp dụng cho đơn hàng đặt trước ngày 01/02/2026 không?",
+    "answer": "## Trả lời về Chính sách Hoàn tiền cho Đơn hàng Đặt trước 01/02/2026\n\nDạ, theo tài liệu nội bộ, câu trả lời là **không** — chính sách hoàn tiền hiện tại (v4) **không áp dụng** cho các đơn hàng đặt trước ngày 01/02/2026.\n\n---\n\n### 📌 Chi tiết cụ thể:\n\n- Chính sách **refund-v4** chỉ áp dụng cho các đơn hàng được đặt **kể từ ngày 01/02/2026** trở đi. [1]\n- Các đơn hàng đặt **trước ngày 01/02/2026** sẽ được xử lý theo **chính sách hoàn tiền phiên bản 3 (refund-v3)**. [1]\n\n---\n\n### 💡 Gợi ý hành động:\n\nNếu bạn cần xử lý hoàn tiền cho đơn hàng đặt trước ngày 01/02/2026, vui lòng:\n- Tham chiếu tài liệu **policy/refund-v3** để tra cứu điều kiện áp dụng chính xác.\n- Liên hệ bộ phận CS/IT Helpdesk để được hỗ trợ tra cứu phiên bản chính sách phù hợp.\n\n---\n\n> ⚠️ *Lưu ý: Tôi hiện chưa có nội dung của refund-v3 trong hệ thống dữ liệu. Nếu bạn cần thông tin chi tiết từ phiên bản đó, tôi sẽ không thể cung cấp chính xác và khuyến nghị",
+    "sources": [
+      "policy/refund-v4.pdf"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T16:13:57.874409"
+  }
+]
