@@ -1,6 +1,7 @@
 # Báo Cáo Cá Nhân — Lab Day 09: Multi-Agent Orchestration
 
-**Họ và tên:** Hoàng Nam  
+**Họ và tên:** Phạm Lê Hoàng Nam
+**MSHV:** 2A202600416
 **Vai trò trong nhóm:** Worker Owner (Synthesis) / Trace & Docs Owner  
 **Ngày nộp:** 14/04/2026
 
@@ -22,20 +23,21 @@ Tôi đóng vai trò cấu thành chốt chặn cuối cùng trong graph. Các w
 
 ## 2. Tôi đã ra một quyết định kỹ thuật gì?
 
-**Quyết định:** Viết lại hoàn toàn `SYSTEM_PROMPT` cho `synthesis.py` bằng Tiếng Anh, phân tách rõ các quy tắc thành các module nhỏ: `GROUNDING`, `ABSTAIN`, `CITATION`, `EXCEPTIONS FIRST`, `LANGUAGE MATCHING`.
+**Quyết định 1:** Viết lại hoàn toàn `SYSTEM_PROMPT` cho `synthesis.py` bằng Tiếng Anh, phân tách rõ các quy tắc thành các module nhỏ: `GROUNDING`, `ABSTAIN`, `CITATION`, `EXCEPTIONS FIRST`, `LANGUAGE MATCHING`.  
+**Lý do:** Ban đầu, prompt mẫu sử dụng Tiếng Việt và các quy tắc chung chung khiến LLM dễ bị ảo giác (hallucinate) hoặc quên trích dẫn nguồn. Việc đổi sang Tiếng Anh với Instruction dạng module rõ ràng giúp LLM bám sát cấu trúc hơn. `LANGUAGE MATCHING` giúp model xuất ra ngôn ngữ đích xác dựa theo ngữ cảnh hỏi.
 
-**Lý do:**
-Ban đầu, prompt mẫu sử dụng Tiếng Việt và các quy tắc được gom chung chung (VD: "CHỈ trả lời dựa vào context... Trích dẫn nguồn..."). Qua thực nghiệm thực tế, LLM (đặc biệt là các model nhỏ như `gpt-4o-mini`) đôi khi bỏ quên mất việc trích dẫn nguồn `[tên_file]`, hoặc khi có "POLICY EXCEPTIONS" (ngoại lệ do Policy Worker trả về như Flash Sale) thì model lại ném thông tin này xuống tít dòng cuối cùng, dẫn đến câu trả lời thiếu mạch lạc.
-Việc đổi sang Tiếng Anh kết hợp với Instruction rõ ràng giúp LLM bám sát định dạng cấu trúc hơn. Tôi cũng thêm `LANGUAGE MATCHING` để model động ứng biến ngôn ngữ trả lời dựa vào ngôn ngữ câu hỏi của user (Hỏi tiếng Việt đáp Tiếng Việt).
+**Quyết định 2:** Áp dụng **LLM-as-Judge** trong module đánh giá mức độ tin cậy `_estimate_confidence()`.  
+**Lý do:** Phương pháp cũ tính toán confidence dựa vào tính trung bình cộng similarity score (Heuristic) trừ đi exception penalty là một giải pháp khá máy móc và có độ nhiễu cao, vì nội dung văn bản mới là quyết định cuối. Việc dùng chính LLM đóng vai trò làm thẩm định viên (Evaluator) chấm điểm chéo câu trả lời dựa trên context/chunks giảm thiểu tỷ lệ confidence rating sai lệch.
 
 **Trade-off đã chấp nhận:**
-Prompt dài hơn một chút, tiêu tốn thêm một lượng nhỏ token khi gọi API API Claude/OpenAI, đổi lại tính ổn định của đầu ra (final_answer) tăng lên đáng kể.
+Chuyển đổi sang LLM-as-Judge làm tăng số lượng API request và thời gian chạy graph thêm khoảng ~1.5 giây cho mỗi query, tiêu tốn thêm token so với Heuristic. Đổi lại tính chính xác và khả năng đánh giá (calibration) của hệ thống phản ánh đúng thực tế ngữ nghĩa.
 
 **Bằng chứng từ trace/code:**
-Sau khi tune prompt, file trace (`run_20260414_151652.json`) đã hiển thị câu trả lời xuất sắc cho câu hỏi về hoàn tiền Flash Sale:
+Sau khi tune prompt và judge, file trace (`run_20260414_154758.json`) đã tính toán confidence bằng LLM chuẩn xác (đạt 0.88) và hiển thị câu trả lời xuất sắc:
 
 ```json
-  "final_answer": "## ⚠️ Ngoại Lệ Chính Sách (Cần Lưu Ý Trước)\n\n> **Đơn hàng Flash Sale KHÔNG được hoàn tiền** theo Điều 3, chính sách v4 [policy/refund-v4.pdf].\n\n---\n\n## Trả Lời: Khách hàng Flash Sale yêu cầu hoàn tiền vì sản phẩm lỗi — **KHÔNG được**.\n...",
+  "final_answer": "## ⚠️ Ngoại Lệ Chính Sách (Áp Dụng Ngay)\n\n> **Đơn hàng Flash Sale KHÔNG được hoàn tiền** — theo Điều...\n...",
+  "confidence": 0.88
 ```
 
 ---
@@ -65,11 +67,11 @@ _Trích Trace trước khi sửa (`run_20260414_145807.json`):_
 "confidence": 0.1,
 ```
 
-_Trích Trace sau khi sửa (`run_20260414_151635.json`):_
+_Trích Trace sau khi sửa (`run_20260414_154744.json`):_
 
 ```json
-"final_answer": "## SLA Xử Lý Ticket P1\n\nDưới đây là các mốc thời gian SLA cho ticket P1:\n\n- **Phản hồi ban đầu (First Response):** 15 phút kể từ khi ticket được tạo [sla-p1-2026.pdf]...",
-"confidence": 0.62,
+"final_answer": "## SLA xử lý ticket P1\n\nDưới đây là các chỉ số SLA cho ticket P1:\n\n- **Phản hồi ban đầu (First Respo...",
+"confidence": 1.0,
 ```
 
 ---
