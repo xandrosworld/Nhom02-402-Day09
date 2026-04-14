@@ -40,3 +40,4 @@ gradio>=4.0.0
 # ─── Dev/Test ───────────────────────────
 pytest>=8.0.0
 anthropic>=0.20.0
+voyageai>=0.3.7

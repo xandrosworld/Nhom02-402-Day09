@@ -174,7 +174,10 @@ def chat(message: str, history: list):
 
     result = run_graph(message)
     answer = result.get("final_answer") or "(Không có câu trả lời)"
-    history = history + [[message, answer]]
+    history = history + [
+        {"role": "user", "content": message},
+        {"role": "assistant", "content": answer},
+    ]
 
     return (
         history,

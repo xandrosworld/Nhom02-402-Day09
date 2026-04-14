@@ -140,7 +140,7 @@ def _call_llm_for_policy(task: str, chunks: list):
 
         response = client.messages.create(
             model=model,
-            max_tokens=512,
+            max_tokens=1024,
             temperature=0,
             system=system_msg,
             messages=user_msgs,
@@ -158,7 +158,7 @@ def _call_llm_for_policy(task: str, chunks: list):
                 model="gpt-4o-mini",
                 messages=messages,
                 temperature=0,
-                max_tokens=512,
+                max_tokens=1024,
             )
             raw_response = response.choices[0].message.content
         except Exception as e:
@@ -170,13 +170,11 @@ def _call_llm_for_policy(task: str, chunks: list):
 
     # Parse JSON response
     try:
-        import json
+        import json, re
         cleaned = raw_response.strip()
-        # Strip potential markdown code fences (Claude đôi khi wrap JSON)
-        if cleaned.startswith("```"):
-            lines = cleaned.split("\n")
-            end_idx = len(lines) - 1 if lines[-1] == "```" else len(lines)
-            cleaned = "\n".join(lines[1:end_idx])
+        # Strip markdown code fences: ```json ... ``` hoặc ``` ... ```
+        cleaned = re.sub(r"^```[a-z]*\n?", "", cleaned)
+        cleaned = re.sub(r"\n?```$", "", cleaned).strip()
         result = json.loads(cleaned)
         if "policy_applies" not in result:
             raise ValueError("Missing 'policy_applies' key in LLM response")
