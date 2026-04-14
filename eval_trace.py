@@ -262,6 +262,16 @@ def compare_single_vs_multi(
     if day08_results_file and os.path.exists(day08_results_file):
         with open(day08_results_file) as f:
             day08_baseline = json.load(f)
+    
+    # ===== Compute deltas =====
+    day08_conf = day08_baseline.get("avg_confidence", 0)
+    day08_latency = day08_baseline.get("avg_latency_ms", 0)
+
+    day09_conf = multi_metrics.get("avg_confidence", 0)
+    day09_latency = multi_metrics.get("avg_latency_ms", 0)
+
+    accuracy_delta = round(day09_conf - day08_conf, 3)
+    latency_delta = day09_latency - day08_latency
 
     comparison = {
         "generated_at": datetime.now().isoformat(),
@@ -269,8 +279,19 @@ def compare_single_vs_multi(
         "day09_multi_agent": multi_metrics,
         "analysis": {
             "routing_visibility": "Day 09 có route_reason cho từng câu → dễ debug hơn Day 08",
-            "latency_delta": "TODO: Điền delta latency thực tế",
-            "accuracy_delta": "TODO: Điền delta accuracy thực tế từ grading",
+            
+            "latency_delta": {
+                "day08": day08_latency,
+                "day09": day09_latency,
+                "delta_ms": latency_delta
+            },
+
+            "accuracy_delta": {
+                "day08": day08_conf,
+                "day09": day09_conf,
+                "delta": accuracy_delta
+            },
+
             "debuggability": "Multi-agent: có thể test từng worker độc lập. Single-agent: không thể.",
             "mcp_benefit": "Day 09 có thể extend capability qua MCP không cần sửa core. Day 08 phải hard-code.",
         },
