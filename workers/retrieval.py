@@ -60,12 +60,9 @@ def _get_embedding_fn():
     except ImportError:
         pass
 
-    # Fallback: random embeddings cho test (KHÔNG dùng production)
-    import random
-    def embed(text: str) -> list:
-        return [random.random() for _ in range(1024)]  # VoyageAI dim=1024
-    print("⚠️  WARNING: Using random embeddings (test only).")
-    return embed
+    raise RuntimeError(
+        "No embedding backend available. Configure VoyageAI or install sentence-transformers."
+    )
 
 
 def _get_collection():
@@ -126,6 +123,17 @@ def _bm25_scores(tokenized_corpus: list[list[str]], tokenized_query: list[str]) 
                 score += idf * (numerator / denominator)
             scores.append(float(score))
         return scores
+
+
+def _normalize_scores_to_unit_interval(scores: list[float]) -> list[float]:
+    """Chuẩn hóa score về [0, 1] để khớp contract worker."""
+    if not scores:
+        return []
+    max_score = max(scores)
+    min_score = min(scores)
+    if max_score == min_score:
+        return [1.0 if max_score > 0 else 0.0 for _ in scores]
+    return [(score - min_score) / (max_score - min_score) for score in scores]
 
 
 def retrieve_dense(query: str, top_k: int = DEFAULT_TOP_K) -> list:
@@ -189,6 +197,7 @@ def retrieve_sparse(query: str, top_k: int = DEFAULT_TOP_K) -> list:
         tokenized_corpus = [_tokenize_for_bm25(doc) for doc in documents]
         tokenized_query = _tokenize_for_bm25(query)
         scores = _bm25_scores(tokenized_corpus, tokenized_query)
+        normalized_scores = _normalize_scores_to_unit_interval(scores)
         ranked_indices = sorted(range(len(scores)), key=lambda idx: scores[idx], reverse=True)[:top_k]
 
         chunks = []
@@ -197,7 +206,7 @@ def retrieve_sparse(query: str, top_k: int = DEFAULT_TOP_K) -> list:
             chunks.append({
                 "text": documents[idx],
                 "source": metadata.get("source", "unknown"),
-                "score": round(float(scores[idx]), 4),
+                "score": round(float(normalized_scores[idx]), 4),
                 "metadata": metadata,
             })
         return chunks
@@ -257,7 +266,7 @@ def run(state: dict) -> dict:
         Updated AgentState với retrieved_chunks và retrieved_sources
     """
     task = state.get("task", "")
-    top_k = state.get("retrieval_top_k", DEFAULT_TOP_K)
+    top_k = state.get("top_k", state.get("retrieval_top_k", DEFAULT_TOP_K))
     retrieval_mode = state.get("retrieval_mode", DEFAULT_RETRIEVAL_MODE)
 
     state.setdefault("workers_called", [])
@@ -278,8 +287,12 @@ def run(state: dict) -> dict:
             chunks = retrieve_dense(task, top_k=top_k)
         elif retrieval_mode == "sparse":
             chunks = retrieve_sparse(task, top_k=top_k)
-        else:
+        elif retrieval_mode == "hybrid":
             chunks = retrieve_hybrid(task, top_k=top_k)
+        else:
+            raise ValueError(
+                f"Unsupported retrieval_mode='{retrieval_mode}'. Expected one of: dense, sparse, hybrid."
+            )
 
         sources = list({c["source"] for c in chunks})
 
