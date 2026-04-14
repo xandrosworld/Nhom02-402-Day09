@@ -12,8 +12,7 @@
 
 **Pattern đã chọn:** Supervisor-Worker  
 **Lý do chọn pattern này (thay vì single agent):**
-
-_________________
+Phân tách trách nhiệm (Separation of Concerns). Supervisor đảm nhận routing, các worker xử lý domain riêng (retrieval, policy, synthesis). Giúp dễ debug, kiểm thử từng phần độc lập và dễ mở rộng các tính năng mới mà không làm phình to prompt của Single Agent.
 
 ---
 
@@ -51,8 +50,30 @@ Retrieval Worker     Policy Tool Worker
 
 **Sơ đồ thực tế của nhóm:**
 
-```
-[NHÓM ĐIỀN VÀO ĐÂY]
+```text
+User Request
+     │
+     ▼
+┌──────────────┐
+│  Supervisor  │  ← Phân tích từ khóa, risk_high
+└──────┬───────┘
+       │
+   [route_decision]
+       │
+  ┌────┼────────────────────┐
+  │    │                    │
+  ▼    ▼                    ▼
+Retrieval Worker     Policy Tool Worker      Human Review
+  (evidence)        (policy check + MCP)      (manual)
+  │    │                    │
+  └────┴────────┬───────────┘
+                │
+                ▼
+          Synthesis Worker
+            (answer + cite)
+                │
+                ▼
+             Output
 ```
 
 ---
@@ -90,10 +111,10 @@ Retrieval Worker     Policy Tool Worker
 
 | Thuộc tính | Mô tả |
 |-----------|-------|
-| **LLM model** | ___________________ |
-| **Temperature** | ___________________ |
-| **Grounding strategy** | ___________________ |
-| **Abstain condition** | ___________________ |
+| **LLM model** | claude-sonnet-4-6 (Primary) / gpt-4o-mini (Fallback) |
+| **Temperature** | 0 (tăng tính chính xác, tránh hallucination) |
+| **Grounding strategy** | CHỈ sử dụng tài liệu TÀI LIỆU THAM KHẢO và POLICY EXCEPTIONS được cung cấp |
+| **Abstain condition** | Nếu context rỗng hoặc không có đủ thông tin, từ chối trả lời với strict message |
 
 ### MCP Server (`mcp_server.py`)
 
@@ -120,7 +141,9 @@ Retrieval Worker     Policy Tool Worker
 | mcp_tools_used | list | Tool calls đã thực hiện | policy_tool ghi |
 | final_answer | str | Câu trả lời cuối | synthesis ghi |
 | confidence | float | Mức tin cậy | synthesis ghi |
-| ___________________ | ___________________ | ___________________ | ___________________ |
+| history | list | Lịch sử các bước xử lý | Tất cả node ghi |
+| workers_called | list | Các worker đã gọi | Các worker ghi |
+| sources | list | Nguồn tài liệu được dùng | synthesis ghi |
 
 ---
 
@@ -134,8 +157,7 @@ Retrieval Worker     Policy Tool Worker
 | ___________________ | ___________________ | ___________________ |
 
 **Nhóm điền thêm quan sát từ thực tế lab:**
-
-_________________
+Kiến trúc Supervisor-Worker xử lý các luồng công việc rõ ràng hơn, tuy nhiên thời gian phản hồi (latency) cao hơn một chút do yêu cầu đi qua qua nhiều agents. Nó giúp hệ thống giảm rủi ro bị ảo giác (hallucination) đáng kể trong các case đặc biệt như Flash Sale.
 
 ---
 
@@ -143,6 +165,6 @@ _________________
 
 > Nhóm mô tả những điểm hạn chế của kiến trúc hiện tại.
 
-1. ___________________
-2. ___________________
-3. ___________________
+1. Độ trễ (latency) khi chạy qua nhiều model có phần tăng so với pipeline Single Agent.
+2. Cần cơ chế chấm rate của confidence mạnh hơn thay cho các rule if/else cơ bản hiện tại.
+3. Nếu supervisor fail phân loại ở bước đầu, toàn bộ luồng phía sau sẽ tính sai kết quả.

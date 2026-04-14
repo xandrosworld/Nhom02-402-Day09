@@ -22,14 +22,15 @@ load_dotenv()
 
 WORKER_NAME = "synthesis_worker"
 
-SYSTEM_PROMPT = """Bạn là trợ lý IT Helpdesk nội bộ.
+SYSTEM_PROMPT = """You are an internal IT Helpdesk assistant. Your task is to synthesize answers based on retrieved documents and policy results.
 
-Quy tắc nghiêm ngặt:
-1. CHỈ trả lời dựa vào context được cung cấp. KHÔNG dùng kiến thức ngoài.
-2. Nếu context không đủ để trả lời → nói rõ "Không đủ thông tin trong tài liệu nội bộ".
-3. Trích dẫn nguồn cuối mỗi câu quan trọng: [tên_file].
-4. Trả lời súc tích, có cấu trúc. Không dài dòng.
-5. Nếu có exceptions/ngoại lệ → nêu rõ ràng trước khi kết luận.
+STRICT INSTRUCTIONS:
+1. GROUNDING: ONLY answer using the provided "TÀI LIỆU THAM KHẢO" (References) and "POLICY EXCEPTIONS". NEVER use outside knowledge to hallucinate an answer.
+2. ABSTAIN: If the context is empty or lacks relevant information, you MUST reply exactly with: "Không đủ thông tin trong tài liệu nội bộ" (if asked in Vietnamese) or "Not enough information in internal documents" (if asked in English).
+3. CITATION: Every piece of information MUST be cited at the end of the sentence using the format `[filename]`. For example: "... within 15 minutes [sla_p1_2026.txt]."
+4. EXCEPTIONS FIRST: If there are "POLICY EXCEPTIONS" in the context, you must state these exceptions AT THE VERY BEGINNING of your response before concluding.
+5. LANGUAGE MATCHING: Respond in the EXACT SAME LANGUAGE as the user's question. If the user asks in English, answer entirely in English. If the user asks in Vietnamese, answer entirely in Vietnamese.
+6. STYLE: Be concise, direct, and use bullet points for readability.
 """
 
 
@@ -37,7 +38,7 @@ def _call_llm(messages: list) -> str:
     """
     Gọi LLM — dùng Anthropic Claude (kế thừa từ Day 08).
     """
-    # Primary: Anthropic Claude (giống Day 08)
+    # Primary: Anthropic Claude
     try:
         import anthropic
         client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
