@@ -166,8 +166,14 @@ policy_tool_worker:
     - "Phải ghi tên MCP tool đã gọi vào mcp_tools_used"
     - "Không được tự bịa policy rules không có trong tài liệu"
   actual_implementation:
-    status: "TODO Sprint 2"
-    notes: ""
+    status: "done"
+    notes: >
+      Sprint 2 hoàn thành. analyze_policy() nâng cấp với two-pass analysis:
+      (1) rule-based detection cho flash_sale, digital_product, activated_product exceptions;
+      (2) LLM second pass via _call_llm_for_policy() dùng Anthropic Claude (primary)
+      và OpenAI gpt-4o-mini (fallback). LLM exceptions được merge vào rule-based results.
+      policy_applies=False nếu một trong hai layer phát hiện exception.
+      Graceful degradation về rule-based-only nếu cả hai LLM không khả dụng.
 
 # ─────────────────────────────────────────────
 # Synthesis Worker
